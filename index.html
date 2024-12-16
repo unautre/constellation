@@ -43,6 +43,29 @@
     </style>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.4/cytoscape.min.js" integrity="sha512-xpXUCbrkyJCwC5noJXZqec9rSXdRgFfDoL7Q9/pCPe54Y04OlqwPobMcNuA5NPJ7DRR51OIr6xcOH2wUspyKDQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script>
+        function throttle(callback, delay) {
+    var last;
+    var timer;
+    return function () {
+        var context = this;
+        var now = +new Date();
+        var args = arguments;
+        if (last && now < last + delay) {
+            // le délai n'est pas écoulé on reset le timer
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+                last = now;
+                callback.apply(context, args);
+            }, delay);
+        } else {
+            last = now;
+            callback.apply(context, args);
+        }
+    };
+}
+    </script>
 </head>
 
 <body>
@@ -83,7 +106,10 @@
       selector: 'node',
       style: {
         'background-color': '#666',
-        'label': 'data(id)'
+        'label': 'data(displayName)',
+        'background-image': 'data(avatar)',
+        'background-image-crossorigin': 'null',
+        'background-fit': 'contain',
       }
     },
 
@@ -100,11 +126,83 @@
   ],
 
   layout: {
-    name: 'grid',
-    rows: 1
+    name: 'concentric'
   }
 
         });
+
+        const baseUrl = "https://public.api.bsky.app/xrpc";
+
+        async function* getFollowers(id) {
+            const url = `${baseUrl}/app.bsky.graph.getFollowers?actor=${event.target.data.id}`;
+            const limit = 100;
+            var cursor = "";
+            
+            do {
+                const response = await fetch(url + "&cursor=" + cursor);
+                if (!response.ok) {
+                    console.error("Response status: ", response);
+                    break;
+                }
+
+                const payload = await response.json();
+                cursor = payload.cursor;
+
+                yield* payload.followers;
+            } while (!!cursor);
+        }
+
+        cy.on("click", async function(event) {
+            console.log("Loading followers of", event.target.data.id);
+
+            for await (const follower of getFollowers(event.target.data.id)) {
+                
+            }
+            
+            const url = `${baseUrl}/app.bsky.graph.getFollowers?actor=${event.target.data.id}`;
+            const limit = 100;
+            do {
+
+            }
+        });
+
+        const searchInput = document.getElementById("search-input");
+        const searchResults = document.getElementById("search-results");
+
+        searchInput.oninput = throttle(async function(e) {
+            const url = `${baseUrl}/app.bsky.actor.searchActorsTypeahead?q=${e.target.value}&limit=10`;
+
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                console.error(`Response status: ${response.status}`, response);
+            } else {
+                const json = await response.json();
+
+                searchResults.replaceChildren.apply(searchResults, json.actors.map(actor => {
+                    const div = document.createElement("div");
+                    div.className = "search-result";
+                    div.textContent = actor.displayName;
+                    div.onclick = () => {
+                        cy.add({
+                            group: "nodes",
+                            data: {
+                                id: actor.did,
+                                displayName: actor.displayName,
+                                avatar: actor.avatar,
+                                handle: actor.handle
+                            },
+                            position: { x: 100, y: 100}
+                        });
+
+                        var layout = cy.elements().layout({ name: 'random' });
+                        layout.run();
+                    }
+
+                    return div;
+                }));
+            }
+        }, 500);
     </script>
 
 </body>
