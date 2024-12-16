@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            --navbar-width: calc(18.75rem * 1);
+        }
+
+        #navbar {
+            /* for debugging purposes */
+            background-color: #2bbed1;
+            border: 1px black;
+
+            /* unmoving navbar */
+            position: fixed;
+            height: 100%;
+            overflow: auto;
+
+            width: var(--navbar-width);
+
+            display: flex;
+            flex-direction: column;
+        }
+
+        #navbar > * {
+            /* elements flowing down */
+            display: block;
+            width: 25%;
+        }
+
+        main {
+            padding-inline-start: var(--navbar-width);
+            height: 1000px;
+        }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.4/cytoscape.min.js" integrity="sha512-xpXUCbrkyJCwC5noJXZqec9rSXdRgFfDoL7Q9/pCPe54Y04OlqwPobMcNuA5NPJ7DRR51OIr6xcOH2wUspyKDQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+
+<body>
+    <nav id="navbar">
+        <search>
+            <label>
+                Label
+                <input type="text" id="search-input" />
+            </label>
+            <select id="search-results">
+                <option value="did">Handle</option>
+            </select>
+        </search>
+    </nav>
+    
+    <main id="graph">
+
+    </main>
+
+    <script>
+        var cy = cytoscape({
+          container: document.getElementById('graph'), // container to render in
+
+          elements: [ // list of graph elements to start with
+    { // node a
+      data: { id: 'a' }
+    },
+    { // node b
+      data: { id: 'b' }
+    },
+    { // edge ab
+      data: { id: 'ab', source: 'a', target: 'b' }
+    }
+  ],
+
+  style: [ // the stylesheet for the graph
+    {
+      selector: 'node',
+      style: {
+        'background-color': '#666',
+        'label': 'data(id)'
+      }
+    },
+
+    {
+      selector: 'edge',
+      style: {
+        'width': 3,
+        'line-color': '#ccc',
+        'target-arrow-color': '#ccc',
+        'target-arrow-shape': 'triangle',
+        'curve-style': 'bezier'
+      }
+    }
+  ],
+
+  layout: {
+    name: 'grid',
+    rows: 1
+  }
+
+        });
+    </script>
+
+</body>
+
+</html>
