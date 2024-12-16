@@ -5,12 +5,14 @@
     <style>
         body {
             --navbar-width: calc(18.75rem * 1);
+
+            /* for debugging purposes */
+            border: 1px black;
         }
 
         #navbar {
             /* for debugging purposes */
             background-color: #2bbed1;
-            border: 1px black;
 
             /* unmoving navbar */
             position: fixed;
@@ -21,16 +23,21 @@
 
             display: flex;
             flex-direction: column;
+
+            z-index: calc(100 + 1);
         }
 
-        #navbar > * {
-            /* elements flowing down */
+        /* elements flowing down */
+        /*#navbar > * {
             display: block;
             width: 25%;
-        }
+        }*/
 
         main {
-            padding-inline-start: var(--navbar-width);
+            /* for debugging purposes */
+            background-color: #f54e4e;
+
+            margin-inline-start: var(--navbar-width);
             height: 1000px;
         }
     </style>
@@ -45,13 +52,13 @@
                 Label
                 <input type="text" id="search-input" />
             </label>
-            <select id="search-results">
-                <option value="did">Handle</option>
-            </select>
+            <div id="search-results">
+
+            </div>
         </search>
     </nav>
     
-    <main id="graph">
+    <main id="graph" style="height: 1000px;">
 
     </main>
 
