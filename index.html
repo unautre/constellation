@@ -52,26 +52,77 @@
     <link rel="stylesheet" href="cytoscape-context-menus.css" />
 
     <script>
+        /** misc api **/
         function throttle(callback, delay) {
-    var last;
-    var timer;
-    return function () {
-        var context = this;
-        var now = +new Date();
-        var args = arguments;
-        if (last && now < last + delay) {
-            // le délai n'est pas écoulé on reset le timer
-            clearTimeout(timer);
-            timer = setTimeout(function () {
-                last = now;
-                callback.apply(context, args);
-            }, delay);
-        } else {
-            last = now;
-            callback.apply(context, args);
+            var last;
+            var timer;
+            return function () {
+                var context = this;
+                var now = +new Date();
+                var args = arguments;
+                if (last && now < last + delay) {
+                    // le délai n'est pas écoulé on reset le timer
+                    clearTimeout(timer);
+                    timer = setTimeout(function () {
+                        last = now;
+                        callback.apply(context, args);
+                    }, delay);
+                } else {
+                    last = now;
+                    callback.apply(context, args);
+                }
+            };
         }
-    };
-}
+
+        async function* batch(generator, size = 25) {
+            let items/*: T[]*/ = [];
+            for await (const item of iterable) {
+                items.push(item);
+                if (items.length >= batchSize) {
+                yield items;
+                items = []
+                }
+            }
+            if (items.length !== 0) {
+                yield items;
+            }
+        }
+
+        /** bsky api **/
+        const baseUrl = "https://public.api.bsky.app/xrpc";
+
+        async function* getFollowers(id) {
+            const url = `${baseUrl}/app.bsky.graph.getFollowers?actor=${id}`;
+            const limit = 100;
+            var cursor = "";
+
+            do {
+                const response = await fetch(url + "&cursor=" + cursor);
+                if (!response.ok) {
+                    console.error("Response status: ", response);
+                    break;
+                }
+
+                const payload = await response.json();
+                cursor = payload.cursor;
+
+                yield* payload.followers;
+            } while (!!cursor);
+        }
+
+        async function searchActorsTypeAhead(value, limit = 10) {
+            const url = `${baseUrl}/app.bsky.actor.searchActorsTypeahead?q=${value}&limit=${limit}`;
+
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                console.error(`Response status: ${response.status}`, response);
+            } else {
+                const json = await response.json();
+
+                return json.actors;
+            }
+        }
     </script>
 </head>
 
@@ -87,7 +138,7 @@
             </div>
         </search>
     </nav>
-    
+
     <main id="graph" style="height: 1000px;">
 
     </main>
