@@ -145,102 +145,114 @@
 
     <script>
         var cy = cytoscape({
-          container: document.getElementById('graph'), // container to render in
+            container: document.getElementById('graph'), // container to render in
 
-          elements: [ // list of graph elements to start with
-    { // node a
-      data: { id: 'a' }
-    },
-    { // node b
-      data: { id: 'b' }
-    },
-    { // edge ab
-      data: { id: 'ab', source: 'a', target: 'b' }
-    }
-  ],
-
-  style: [ // the stylesheet for the graph
-    {
-      selector: 'node',
-      style: {
-        'background-color': '#666',
-        'label': 'data(displayName)',
-        'background-image': 'data(avatar)',
-        'background-image-crossorigin': 'null',
-        'background-fit': 'contain',
-      }
-    },
-
-    {
-      selector: 'edge',
-      style: {
-        'width': 3,
-        'line-color': '#ccc',
-        'target-arrow-color': '#ccc',
-        'target-arrow-shape': 'triangle',
-        'curve-style': 'bezier'
-      }
-    }
-  ],
-
-  layout: {
-    name: 'concentric'
-  }
-
-        });
-
-        const baseUrl = "https://public.api.bsky.app/xrpc";
-
-        async function* getFollowers(id) {
-            const url = `${baseUrl}/app.bsky.graph.getFollowers?actor=${event.target.data.id}`;
-            const limit = 100;
-            var cursor = "";
-            
-            do {
-                const response = await fetch(url + "&cursor=" + cursor);
-                if (!response.ok) {
-                    console.error("Response status: ", response);
-                    break;
+            elements: [ // list of graph elements to start with
+                { // node a
+                    data: { id: 'a' }
+                },
+                { // node b
+                    data: { id: 'b' }
+                },
+                { // edge ab
+                    data: { id: 'ab', source: 'a', target: 'b' }
                 }
+            ],
 
-                const payload = await response.json();
-                cursor = payload.cursor;
+            style: [ // the stylesheet for the graph
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color': '#666',
+                        'label': 'data(displayName)',
+                        'background-image': 'data(avatar)',
+                        'background-image-crossorigin': 'null',
+                        'background-fit': 'contain',
+                    }
+                },
 
-                yield* payload.followers;
-            } while (!!cursor);
-        }
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 3,
+                        'line-color': '#ccc',
+                        'target-arrow-color': '#ccc',
+                        'target-arrow-shape': 'triangle',
+                        'curve-style': 'bezier'
+                    }
+                }
+            ],
 
-        cy.on("click", async function(event) {
-            console.log("Loading followers of", event.target.data.id);
-
-            for await (const follower of getFollowers(event.target.data.id)) {
-                
+            layout: {
+                name: 'concentric'
             }
-            
-            const url = `${baseUrl}/app.bsky.graph.getFollowers?actor=${event.target.data.id}`;
-            const limit = 100;
-            do {
 
-            }
         });
 
+        var instance = cy.contextMenus({
+            menuItems: [/*
+      {
+        id: 'remove', // ID of menu item
+        content: 'remove', // Display content of menu item
+        tooltipText: 'remove', // Tooltip text for menu item
+        image: {src : "remove.svg", width : 12, height : 12, x : 6, y : 4}, // menu icon
+        // Filters the elements to have this menu item on cxttap
+        // If the selector is not truthy no elements will have this menu item on cxttap
+        selector: 'node, edge', 
+        onClickFunction: function () { // The function to be executed on click
+          console.log('remove element');
+        },
+        disabled: false, // Whether the item will be created as disabled
+        show: false, // Whether the item will be shown or not
+        hasTrailingDivider: true, // Whether the item will have a trailing divider
+        coreAsWell: false // Whether core instance have this item on cxttap
+        submenu: [] // Shows the listed menuItems as a submenu for this item. An item must have either submenu or onClickFunction or both.
+      }, */
+            {
+                id: 'get-followers',
+                content: 'fetch followers',
+                selector: 'node',
+                onClickFunction: function(evt) {
+                    const target = evt.target || evt.cyTarget;
+
+                    console.log("Get followers of:", target.data("id"));
+
+
+
+                    /**
+                    for await (const batch of batch(getFollowers(event.target.data.id), 25)) {
+                        
+                    }
+
+                    for await (const follower of getFollowers(event.target.data.id)) {
+
+                    }
+
+                    const url = `${baseUrl}/app.bsky.graph.getFollowers?actor=${event.target.data.id}`;
+                    const limit = 100;
+                    do {
+
+                    } while(true);
+                     **/
+                },
+                show: true
+            }]
+        });
+
+        /** search bar **/
         const searchInput = document.getElementById("search-input");
         const searchResults = document.getElementById("search-results");
 
-        searchInput.oninput = throttle(async function(e) {
-            const url = `${baseUrl}/app.bsky.actor.searchActorsTypeahead?q=${e.target.value}&limit=10`;
+        searchInput.oninput = throttle(async function (e) {
+            const actors = await searchActorsTypeAhead(e.target.value);
+            const divs = actors.map(actor => {
+                const div = document.createElement("div");
+                div.className = "search-result";
+                div.textContent = actor.displayName;
 
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                console.error(`Response status: ${response.status}`, response);
-            } else {
-                const json = await response.json();
-
-                searchResults.replaceChildren.apply(searchResults, json.actors.map(actor => {
-                    const div = document.createElement("div");
-                    div.className = "search-result";
-                    div.textContent = actor.displayName;
+                if (!!cy.getElementById(actor.did)[0]) {
+                    div.style = "text-decoration:line-through;"
+                } else {
                     div.onclick = () => {
                         cy.add({
                             group: "nodes",
@@ -250,16 +262,17 @@
                                 avatar: actor.avatar,
                                 handle: actor.handle
                             },
-                            position: { x: 100, y: 100}
+                            position: { x: 100, y: 100 }
                         });
 
                         var layout = cy.elements().layout({ name: 'random' });
                         layout.run();
                     }
+                }
+                return div;
+            });
 
-                    return div;
-                }));
-            }
+            searchResults.replaceChildren.apply(searchResults, divs);
         }, 500);
     </script>
 
