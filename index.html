@@ -91,9 +91,27 @@
         /** bsky api **/
         const baseUrl = "https://public.api.bsky.app/xrpc";
 
+        async function* getFollows(id) {
+            const url = `${baseUrl}/app.bsky.graph.getFollows?actor=${id}`;
+            
+            var cursor = "";
+
+            do {
+                const response = await fetch(url + "&cursor=" + cursor);
+                if (!response.ok) {
+                    console.error("Response status: ", response);
+                    break;
+                }
+
+                const payload = await response.json();
+                cursor = payload.cursor;
+
+                yield* payload.follows;
+            } while (!!cursor);
+        }
+
         async function* getFollowers(id) {
             const url = `${baseUrl}/app.bsky.graph.getFollowers?actor=${id}`;
-            const limit = 100;
             var cursor = "";
 
             do {
@@ -148,7 +166,7 @@
             container: document.getElementById('graph'), // container to render in
 
             elements: [ // list of graph elements to start with
-                { // node a
+                /*{ // node a
                     data: { id: 'a' }
                 },
                 { // node b
@@ -156,7 +174,7 @@
                 },
                 { // edge ab
                     data: { id: 'ab', source: 'a', target: 'b' }
-                }
+                }*/
             ],
 
             style: [ // the stylesheet for the graph
@@ -209,31 +227,38 @@
         submenu: [] // Shows the listed menuItems as a submenu for this item. An item must have either submenu or onClickFunction or both.
       }, */
             {
-                id: 'get-followers',
-                content: 'fetch followers',
+                id: 'get-follows',
+                content: 'fetch follows',
                 selector: 'node',
-                onClickFunction: function(evt) {
+                onClickFunction: async function(evt) {
                     const target = evt.target || evt.cyTarget;
+                    const id = target.data("id");
 
-                    console.log("Get followers of:", target.data("id"));
-
-
-
-                    /**
-                    for await (const batch of batch(getFollowers(event.target.data.id), 25)) {
-                        
+                    console.log("Get followers of:", id);
+                    for await (const actor of getFollows(id)) {
+                        cy.add([{
+                            group: "nodes",
+                            data: {
+                                id: actor.did,
+                                displayName: actor.displayName,
+                                avatar: actor.avatar,
+                                handle: actor.handle
+                            },
+                            position: { x: 100, y: 100 }
+                        },{
+                            group: "edges",
+                            data: {
+                                id: id + "-" + actor.did,
+                                source: id,
+                                target: actor.did,
+                                verb: "follows"
+                            }
+                        }]);
                     }
 
-                    for await (const follower of getFollowers(event.target.data.id)) {
 
-                    }
-
-                    const url = `${baseUrl}/app.bsky.graph.getFollowers?actor=${event.target.data.id}`;
-                    const limit = 100;
-                    do {
-
-                    } while(true);
-                     **/
+                    var layout = cy.elements().layout({ name: 'random' });
+                    layout.run();
                 },
                 show: true
             }]
